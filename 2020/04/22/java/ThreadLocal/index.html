@@ -80,9 +80,9 @@
 
 
 <meta name="description" content="##一.threadlocal概述顾名思义线程本地存储，如果定义了一个threadlocal对象，每个线程往这个threadlocal对象中的读写是隔离的，可以为相同对象在不同线程中都创建不同的存储，因此如果多个线程都使用变量x，那线程本地存储会生成多个用于x的不同存储块。##二.threadlocal实现的大致思路Thread类有一个ThreadLocal.threadLocalMap类型的实例">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Hexo">
-<meta property="og:url" content="http://yoursite.com/java/ThreadLocal.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="java&#x2F;ThreadLocal">
+<meta property="og:url" content="http://yoursite.com/2020/04/22/java/ThreadLocal/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="##一.threadlocal概述顾名思义线程本地存储，如果定义了一个threadlocal对象，每个线程往这个threadlocal对象中的读写是隔离的，可以为相同对象在不同线程中都创建不同的存储，因此如果多个线程都使用变量x，那线程本地存储会生成多个用于x的不同存储块。##二.threadlocal实现的大致思路Thread类有一个ThreadLocal.threadLocalMap类型的实例">
 <meta property="og:locale" content="en_US">
@@ -122,13 +122,13 @@
 
 
 
-  <link rel="canonical" href="http://yoursite.com/java/ThreadLocal.html"/>
+  <link rel="canonical" href="http://yoursite.com/2020/04/22/java/ThreadLocal/"/>
 
 
 
 
 
-  <title> | Hexo</title>
+  <title>java/ThreadLocal | Hexo</title>
   
 
 
@@ -223,24 +223,86 @@
 
   <div id="posts" class="posts-expand">
     
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/04/22/java/ThreadLocal/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="John Doe">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+
     
-    
-    <div class="post-block page">
       <header class="post-header">
 
-	<h1 class="post-title" itemprop="name headline"></h1>
-
-
-
-</header>
-
-      
-      
-      
-      <div class="post-body">
         
         
-          <p>##一.threadlocal概述<br>顾名思义线程本地存储，如果定义了一个threadlocal对象，每个线程往这个threadlocal对象中的读写是隔离的，可以为相同对象在不同线程中都创建不同的存储，因此如果多个线程都使用变量x，那线程本地存储会生成多个用于x的不同存储块。<br>##二.threadlocal实现的大致思路<br>Thread类有一个ThreadLocal.threadLocalMap类型的实例变量threadlocals，也就是说每个线程都有一个threadLocalMap，threadLocalMap为定义在threadlocal内的静态内部类，虽是一个map但没有实现map接口，有自己独立的实现。threadLocalMap的是使用开放寻址线性探测的哈希表，节点Entry继承自弱引用WeakReference，本身为指向threadlocal的弱引用，有一个value属性用来存放放到threadlocal内的值。可以简单的认为key为threadlocal对象，值为放入threadlocal的具体值。每个线程往threadlocal中塞值的时候，都会以该threadlocal对象为key，往自己的threadlocalmap中存，读也是以某个threadlocal为引用，在自己的threadlocalmap中找对应的key，从而实现线程隔离。<br>图为Thread类中threadlocalmap实例变量：</p>
+          <h1 class="post-title" itemprop="name headline">java/ThreadLocal</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-04-22T18:28:53+08:00">
+                2020-04-22
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>##一.threadlocal概述<br>顾名思义线程本地存储，如果定义了一个threadlocal对象，每个线程往这个threadlocal对象中的读写是隔离的，可以为相同对象在不同线程中都创建不同的存储，因此如果多个线程都使用变量x，那线程本地存储会生成多个用于x的不同存储块。<br>##二.threadlocal实现的大致思路<br>Thread类有一个ThreadLocal.threadLocalMap类型的实例变量threadlocals，也就是说每个线程都有一个threadLocalMap，threadLocalMap为定义在threadlocal内的静态内部类，虽是一个map但没有实现map接口，有自己独立的实现。threadLocalMap的是使用开放寻址线性探测的哈希表，节点Entry继承自弱引用WeakReference，本身为指向threadlocal的弱引用，有一个value属性用来存放放到threadlocal内的值。可以简单的认为key为threadlocal对象，值为放入threadlocal的具体值。每个线程往threadlocal中塞值的时候，都会以该threadlocal对象为key，往自己的threadlocalmap中存，读也是以某个threadlocal为引用，在自己的threadlocalmap中找对应的key，从而实现线程隔离。<br>图为Thread类中threadlocalmap实例变量：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ThreadLocal.ThreadLocalMap threadLocals &#x3D; null;</span><br></pre></td></tr></table></figure>
 <p>##三.API<br><img src="https://upload-images.jianshu.io/upload_images/14017034-5a36bdc5fcc58196.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt="image.png"><br>threadLocalMap的api:<br><img src="https://upload-images.jianshu.io/upload_images/14017034-08bd34c20288d353.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt="image.png"></p>
 <p>##四.threadlocal API<br>get方法:</p>
@@ -261,15 +323,41 @@
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">private void set(ThreadLocal&lt;?&gt; key, Object value) &#123;</span><br><span class="line"></span><br><span class="line">           Entry[] tab &#x3D; table;</span><br><span class="line">           int len &#x3D; tab.length;</span><br><span class="line">           &#x2F;&#x2F;key所在的槽位，使用该key的哈希值与上tab表的长度减一，相当于用len对threadLocalHashCode取模</span><br><span class="line">           int i &#x3D; key.threadLocalHashCode &amp; (len-1);</span><br><span class="line">           &#x2F;&#x2F;若槽不为空，线性探测</span><br><span class="line">           for (Entry e &#x3D; tab[i];</span><br><span class="line">                e !&#x3D; null;</span><br><span class="line">                e &#x3D; tab[i &#x3D; nextIndex(i, len)]) &#123;</span><br><span class="line">               ThreadLocal&lt;?&gt; k &#x3D; e.get();</span><br><span class="line">               &#x2F;&#x2F;如果槽中entry对应的threadlocal对象与参数所传入对象相同，则直接替换</span><br><span class="line">               if (k &#x3D;&#x3D; key) &#123;</span><br><span class="line">                   e.value &#x3D; value;</span><br><span class="line">                   return;</span><br><span class="line">               &#125;</span><br><span class="line">               &#x2F;&#x2F;若槽中entry弱引用指向的threadlocal对象已经被gc回收，则该entry失效，替换</span><br><span class="line">               if (k &#x3D;&#x3D; null) &#123;</span><br><span class="line">                   replaceStaleEntry(key, value, i);</span><br><span class="line">                   return;</span><br><span class="line">               &#125;</span><br><span class="line">           &#125;</span><br><span class="line">           &#x2F;&#x2F;否则new一个entry</span><br><span class="line">           tab[i] &#x3D; new Entry(key, value);</span><br><span class="line">           int sz &#x3D; ++size;</span><br><span class="line">           if (!cleanSomeSlots(i, sz) &amp;&amp; sz &gt;&#x3D; threshold)</span><br><span class="line">               rehash();</span><br><span class="line">       &#125;</span><br></pre></td></tr></table></figure>
 <p>未完待续</p>
 
-        
-      </div>
-      
-      
       
     </div>
     
     
     
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
   </div>
 
 
@@ -318,7 +406,7 @@
               
                 <a href="/archives/%20%7C%7C%20archive">
               
-                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-count">1</span>
                   <span class="site-state-item-name">posts</span>
                 </a>
               </div>
