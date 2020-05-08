@@ -239,7 +239,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/05/08/redis_dict/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/05/08/ThreadLocal%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Gorden Tam">
@@ -258,7 +258,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2020/05/08/redis_dict/" itemprop="url">redis_dict</a></h1>
+                <a class="post-title-link" href="/2020/05/08/ThreadLocal%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/" itemprop="url">ThreadLocal源码解读</a></h1>
         
 
         <div class="post-meta">
@@ -270,136 +270,8 @@
               
                 <span class="post-meta-item-text">Posted on</span>
               
-              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-05-08T11:48:23+08:00">
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-05-08T14:08:32+08:00">
                 2020-05-08
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="字典是redis底层数据结构之一，在dict-c中实现，下面分析下他的实现。"><a href="#字典是redis底层数据结构之一，在dict-c中实现，下面分析下他的实现。" class="headerlink" title="字典是redis底层数据结构之一，在dict.c中实现，下面分析下他的实现。"></a>字典是redis底层数据结构之一，在dict.c中实现，下面分析下他的实现。</h2><h2 id="一-简介"><a href="#一-简介" class="headerlink" title="一.简介"></a>一.简介</h2><p>redis的dict仍然是一个数组+链表实现的哈希表。区别为redis的dict有两个哈希表，第二个哈希表resize时使用，如下为它头文件中定义的结构：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;entry</span><br><span class="line">typedef struct dictEntry &#123;</span><br><span class="line">    void *key;</span><br><span class="line">    union &#123;</span><br><span class="line">        void *val;</span><br><span class="line">        uint64_t u64;</span><br><span class="line">        int64_t s64;</span><br><span class="line">        double d;</span><br><span class="line">    &#125; v;</span><br><span class="line">    struct dictEntry *next;</span><br><span class="line">&#125; dictEntry;</span><br><span class="line"></span><br><span class="line">typedef struct dictht &#123;</span><br><span class="line">    dictEntry **table;</span><br><span class="line">    unsigned long size;</span><br><span class="line">    unsigned long sizemask;</span><br><span class="line">    &#x2F;&#x2F;当前哈希表中</span><br><span class="line">    unsigned long used;</span><br><span class="line">&#125; dictht;</span><br><span class="line"></span><br><span class="line">typedef struct dict &#123;</span><br><span class="line">    dictType *type;</span><br><span class="line">    void *privdata;</span><br><span class="line">    dictht ht[2];</span><br><span class="line">    long rehashidx; &#x2F;&#x2F;rehash进度</span><br><span class="line">    unsigned long iterators; &#x2F;* number of iterators currently running *&#x2F;</span><br><span class="line">&#125; dict;</span><br></pre></td></tr></table></figure>
-<p>redis的字典有两个哈希表dictht[0]和dictht[1],只有rehash时两个哈希表才同时使用，平时只有dictht[0]哈希表中有数据。<br>rehashidx用来标记rehash正在执行到哪个槽，如果没有rehashing则返回-1.<br>redis rehash最大的特点是渐进性rehash，将rehash操作分散在插入，删除等操作中。这点和ThreadPoolExecutor实现思想很像有木有。</p>
-<p>二.实现分析：<br>1.插入：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br></pre></td><td class="code"><pre><span class="line">int dictAdd(dict *d, void *key, void *val)</span><br><span class="line">&#123;</span><br><span class="line">    dictEntry *entry &#x3D; dictAddRaw(d,key,NULL);</span><br><span class="line"></span><br><span class="line">    if (!entry) return DICT_ERR;</span><br><span class="line">    dictSetVal(d, entry, val);</span><br><span class="line">    return DICT_OK;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">dictEntry *dictAddRaw(dict *d, void *key, dictEntry **existing)</span><br><span class="line">&#123;</span><br><span class="line">    long index;</span><br><span class="line">    dictEntry *entry;</span><br><span class="line">    dictht *ht;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F;如果正在rehashing，则执行一次_dictRehashStep操作。</span><br><span class="line">    if (dictIsRehashing(d)) _dictRehashStep(d);</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;获取插入的key在数组的中的位置</span><br><span class="line">    if ((index &#x3D; _dictKeyIndex(d, key, dictHashKey(d,key), existing)) &#x3D;&#x3D; -1)</span><br><span class="line">        return NULL;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;如果正在执行rehash操作则将entry插入ht[1],否在插入ht[0]</span><br><span class="line">    ht &#x3D; dictIsRehashing(d) ? &amp;d-&gt;ht[1] : &amp;d-&gt;ht[0];</span><br><span class="line">    entry &#x3D; zmalloc(sizeof(*entry));</span><br><span class="line">    &#x2F;&#x2F;放入链表头</span><br><span class="line">    entry-&gt;next &#x3D; ht-&gt;table[index];</span><br><span class="line">    ht-&gt;table[index] &#x3D; entry;</span><br><span class="line">    &#x2F;&#x2F;负载+1</span><br><span class="line">    ht-&gt;used++;</span><br><span class="line"></span><br><span class="line">    dictSetKey(d, entry, key);</span><br><span class="line">    return entry;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;返回一个key所在的数组下标并判断该key是否存在。如果没有执行rehash，则只搜索ht[0]并返回该key在ht[0]的下标。如果正在rehash则两个哈希表都搜索并返回在ht[1]的下标.</span><br><span class="line">static long _dictKeyIndex(dict *d, const void *key, uint64_t hash, dictEntry **existing)</span><br><span class="line">&#123;</span><br><span class="line">    unsigned long idx, table;</span><br><span class="line">    dictEntry *he;</span><br><span class="line">    if (existing) *existing &#x3D; NULL;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;如果当前负载已经达到负载因子，则扩容。</span><br><span class="line">    if (_dictExpandIfNeeded(d) &#x3D;&#x3D; DICT_ERR)</span><br><span class="line">        return -1;</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F;先搜索第一个哈希表，搜索完第一个哈希表之后，如果当前字典没有在执行rehash，则不搜索第二个哈希表。如果正在执行rehash，则在搜索第二个哈希表。</span><br><span class="line">    for (table &#x3D; 0; table &lt;&#x3D; 1; table++) &#123;</span><br><span class="line">        &#x2F;&#x2F;取余计算key应放置的数组下标</span><br><span class="line">        idx &#x3D; hash &amp; d-&gt;ht[table].sizemask;</span><br><span class="line">        &#x2F;&#x2F;沿着当前槽的链表向后搜索是否有该key，如果有返回-1.</span><br><span class="line">        he &#x3D; d-&gt;ht[table].table[idx];</span><br><span class="line">        while(he) &#123;</span><br><span class="line">            if (key&#x3D;&#x3D;he-&gt;key || dictCompareKeys(d, key, he-&gt;key)) &#123;</span><br><span class="line">                if (existing) *existing &#x3D; he;</span><br><span class="line">                return -1;</span><br><span class="line">            &#125;</span><br><span class="line">            he &#x3D; he-&gt;next;</span><br><span class="line">        &#125;</span><br><span class="line">        &#x2F;&#x2F;如果没有rehashing，则不再搜索ht[1]</span><br><span class="line">        if (!dictIsRehashing(d)) break;</span><br><span class="line">    &#125;</span><br><span class="line">    return idx;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;检查当前哈希表是否需要扩容，正在rehash的话不扩容，扩容后大小为比used*2大的最接近的2的n次幂。</span><br><span class="line">static int _dictExpandIfNeeded(dict *d)</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;正在rehash的话不扩容。</span><br><span class="line">    if (dictIsRehashing(d)) return DICT_OK;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;如果ht[0]是空，则初始化</span><br><span class="line">    if (d-&gt;ht[0].size &#x3D;&#x3D; 0) return dictExpand(d, DICT_HT_INITIAL_SIZE);</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F;负载因为为1.但是如果正在执行bgsave操作，负载因子为dict_force_resize_ratio 5</span><br><span class="line">    if (d-&gt;ht[0].used &gt;&#x3D; d-&gt;ht[0].size &amp;&amp;</span><br><span class="line">        (dict_can_resize ||</span><br><span class="line">         d-&gt;ht[0].used&#x2F;d-&gt;ht[0].size &gt; dict_force_resize_ratio))</span><br><span class="line">    &#123;</span><br><span class="line">        &#x2F;&#x2F;扩容，扩容数为当前已有元素数量*2</span><br><span class="line">        return dictExpand(d, d-&gt;ht[0].used*2);</span><br><span class="line">    &#125;</span><br><span class="line">    return DICT_OK;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;扩容</span><br><span class="line">int dictExpand(dict *d, unsigned long size)</span><br><span class="line">&#123;</span><br><span class="line">    &#x2F;&#x2F;如果正在rehashing或者扩容之后负载仍然大于1，返回错误</span><br><span class="line">    if (dictIsRehashing(d) || d-&gt;ht[0].used &gt; size)</span><br><span class="line">        return DICT_ERR;</span><br><span class="line"></span><br><span class="line">    dictht n; &#x2F;* the new hash table *&#x2F;</span><br><span class="line">    &#x2F;&#x2F;确保size为2的倍数</span><br><span class="line">    unsigned long realsize &#x3D; _dictNextPower(size);</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;如果扩容之后的size仍等于ht[0]size，则返回错误。</span><br><span class="line">    if (realsize &#x3D;&#x3D; d-&gt;ht[0].size) return DICT_ERR;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;开辟哈希表空间</span><br><span class="line">    n.size &#x3D; realsize;</span><br><span class="line">    n.sizemask &#x3D; realsize-1;</span><br><span class="line">    n.table &#x3D; zcalloc(realsize*sizeof(dictEntry*));</span><br><span class="line">    n.used &#x3D; 0;</span><br><span class="line"></span><br><span class="line">    &#x2F;* Is this the first initialization? If so it&#39;s not really a rehashing</span><br><span class="line">     * we just set the first hash table so that it can accept keys. *&#x2F;</span><br><span class="line">    if (d-&gt;ht[0].table &#x3D;&#x3D; NULL) &#123;</span><br><span class="line">        d-&gt;ht[0] &#x3D; n;</span><br><span class="line">        return DICT_OK;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;将新建的哈希表赋值给ht[1]</span><br><span class="line">    d-&gt;ht[1] &#x3D; n;</span><br><span class="line">    d-&gt;rehashidx &#x3D; 0;</span><br><span class="line">    return DICT_OK;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>插入操作有几个要点：<br>1.渐进性hash:<br>插入时会判断当前字典是否正在rehashing，如果正在rehashing，会执行一次rehash操作.<br>2.二倍扩容<br>扩容后大小为比used*2大的最接近的2的n次幂。这样&amp;运算即可算出key要插入的数组下标。<br>3.负载因子为1<br>但是如果dict_can_resize标志位为true，表明正在执行rdb写入操作，此时负载因子为5.<br>4.头插法<br>新的节点插入到表头<br>5.如果正在rehash，则新节点直接插入到ht[1]。</p>
-<p>rehash：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line">int dictRehash(dict *d, int n) &#123;</span><br><span class="line">    int empty_visits &#x3D; n*10; &#x2F;* Max number of empty buckets to visit. *&#x2F;</span><br><span class="line">    if (!dictIsRehashing(d)) return 0;</span><br><span class="line"></span><br><span class="line">    while(n-- &amp;&amp; d-&gt;ht[0].used !&#x3D; 0) &#123;</span><br><span class="line">        dictEntry *de, *nextde;</span><br><span class="line"></span><br><span class="line">        &#x2F;* Note that rehashidx can&#39;t overflow as we are sure there are more</span><br><span class="line">         * elements because ht[0].used !&#x3D; 0 *&#x2F;</span><br><span class="line">        assert(d-&gt;ht[0].size &gt; (unsigned long)d-&gt;rehashidx);</span><br><span class="line">        &#x2F;&#x2F;跳过空槽</span><br><span class="line">        while(d-&gt;ht[0].table[d-&gt;rehashidx] &#x3D;&#x3D; NULL) &#123;</span><br><span class="line">            d-&gt;rehashidx++;</span><br><span class="line">            if (--empty_visits &#x3D;&#x3D; 0) return 1;</span><br><span class="line">        &#125;</span><br><span class="line">        de &#x3D; d-&gt;ht[0].table[d-&gt;rehashidx];</span><br><span class="line">        &#x2F;&#x2F;将当前槽上链表的所有节点都引动到ht[1]</span><br><span class="line">        while(de) &#123;</span><br><span class="line">            uint64_t h;</span><br><span class="line"></span><br><span class="line">            nextde &#x3D; de-&gt;next;</span><br><span class="line">            &#x2F;* Get the index in the new hash table *&#x2F;</span><br><span class="line">            h &#x3D; dictHashKey(d, de-&gt;key) &amp; d-&gt;ht[1].sizemask;</span><br><span class="line">            de-&gt;next &#x3D; d-&gt;ht[1].table[h];</span><br><span class="line">            d-&gt;ht[1].table[h] &#x3D; de;</span><br><span class="line">            d-&gt;ht[0].used--;</span><br><span class="line">            d-&gt;ht[1].used++;</span><br><span class="line">            de &#x3D; nextde;</span><br><span class="line">        &#125;</span><br><span class="line">        d-&gt;ht[0].table[d-&gt;rehashidx] &#x3D; NULL;</span><br><span class="line">        d-&gt;rehashidx++;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;检查时候完成，完成的话将整个ht[1]赋值给ht[0].</span><br><span class="line">    if (d-&gt;ht[0].used &#x3D;&#x3D; 0) &#123;</span><br><span class="line">        zfree(d-&gt;ht[0].table);</span><br><span class="line">        d-&gt;ht[0] &#x3D; d-&gt;ht[1];</span><br><span class="line">        _dictReset(&amp;d-&gt;ht[1]);</span><br><span class="line">        d-&gt;rehashidx &#x3D; -1;</span><br><span class="line">        return 0;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;* More to rehash... *&#x2F;</span><br><span class="line">    return 1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>rehash操作很简单，一次rehash操作移动一个槽。rehash完成后会释放ht[0],并将ht[1]赋值给ht[0].</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/04/23/ThreadLocal/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Gorden Tam">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Gorden Tam's blog">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2020/04/23/ThreadLocal/" itemprop="url">ThreadLocal</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">Posted on</span>
-              
-              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-04-23T16:53:15+08:00">
-                2020-04-23
               </time>
             
 
@@ -539,7 +411,7 @@
               
                 <a href="/archives/%20%7C%7C%20archive">
               
-                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-count">1</span>
                   <span class="site-state-item-name">posts</span>
                 </a>
               </div>
