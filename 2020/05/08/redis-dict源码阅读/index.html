@@ -81,13 +81,13 @@
 
 <meta name="description" content="字典是redis底层数据结构之一，在dict.c中实现，下面分析下他的实现。一.简介redis的dict仍然是一个数组+链表实现的哈希表。区别为redis的dict有两个哈希表，第二个哈希表resize时使用，如下为它头文件中定义的结构： 123456789101112131415161718192021222324252627&#x2F;&#x2F;entrytypedef struct dic">
 <meta property="og:type" content="article">
-<meta property="og:title" content="redis_dict源码解读">
-<meta property="og:url" content="http://yoursite.com/2020/05/08/redis_dict%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/index.html">
+<meta property="og:title" content="redis-dict源码解读">
+<meta property="og:url" content="http://yoursite.com/2020/05/08/redis-dict%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB/index.html">
 <meta property="og:site_name" content="Gorden Tam&#39;s blog">
 <meta property="og:description" content="字典是redis底层数据结构之一，在dict.c中实现，下面分析下他的实现。一.简介redis的dict仍然是一个数组+链表实现的哈希表。区别为redis的dict有两个哈希表，第二个哈希表resize时使用，如下为它头文件中定义的结构： 123456789101112131415161718192021222324252627&#x2F;&#x2F;entrytypedef struct dic">
 <meta property="og:locale" content="en_US">
-<meta property="article:published_time" content="2020-05-08T06:19:06.901Z">
-<meta property="article:modified_time" content="2020-05-08T06:19:06.873Z">
+<meta property="article:published_time" content="2020-05-08T06:28:49.121Z">
+<meta property="article:modified_time" content="2020-05-08T06:28:49.117Z">
 <meta property="article:author" content="Gorden Tam">
 <meta name="twitter:card" content="summary">
 
@@ -119,13 +119,13 @@
 
 
 
-  <link rel="canonical" href="http://yoursite.com/2020/05/08/redis_dict源码解读/"/>
+  <link rel="canonical" href="http://yoursite.com/2020/05/08/redis-dict源码阅读/"/>
 
 
 
 
 
-  <title>redis_dict源码解读 | Gorden Tam's blog</title>
+  <title>redis-dict源码解读 | Gorden Tam's blog</title>
   
 
 
@@ -181,9 +181,9 @@
       
         
         <li class="menu-item menu-item-home">
-          <a href="/%20" rel="section">
+          <a href="/" rel="section">
             
-              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
             
             Home
           </a>
@@ -191,9 +191,9 @@
       
         
         <li class="menu-item menu-item-categories">
-          <a href="/categories/%20" rel="section">
+          <a href="/categories/" rel="section">
             
-              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
             
             Categories
           </a>
@@ -201,9 +201,9 @@
       
         
         <li class="menu-item menu-item-archives">
-          <a href="/archives/%20" rel="section">
+          <a href="/archives/" rel="section">
             
-              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+              <i class="menu-item-icon fa fa-fw fa-question-circle"></i> <br />
             
             Archives
           </a>
@@ -242,7 +242,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/05/08/redis_dict%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/05/08/redis-dict%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Gorden Tam">
@@ -259,7 +259,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">redis_dict源码解读</h1>
+          <h1 class="post-title" itemprop="name headline">redis-dict源码解读</h1>
         
 
         <div class="post-meta">
@@ -271,7 +271,7 @@
               
                 <span class="post-meta-item-text">Posted on</span>
               
-              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-05-08T14:19:06+08:00">
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-05-08T14:28:49+08:00">
                 2020-05-08
               </time>
             
@@ -364,8 +364,8 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
-              <a href="/2020/05/08/ThreadLocal%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB/" rel="next" title="threadlocal源码解读">
-                <i class="fa fa-chevron-left"></i> threadlocal源码解读
+              <a href="/2020/05/08/ThreadLocal%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB/" rel="next" title="ThreadLocal源码阅读">
+                <i class="fa fa-chevron-left"></i> ThreadLocal源码阅读
               </a>
             
           </div>
@@ -447,7 +447,7 @@
             
               <div class="site-state-item site-state-posts">
               
-                <a href="/archives/%20%7C%7C%20archive">
+                <a href="/archives/">
               
                   <span class="site-state-item-count">2</span>
                   <span class="site-state-item-name">posts</span>
