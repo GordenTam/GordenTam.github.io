@@ -79,11 +79,15 @@
 
 
 
-<meta property="og:type" content="website">
-<meta property="og:title" content="Gorden Tam&#39;s blog">
-<meta property="og:url" content="http://yoursite.com/index.html">
+<meta name="description" content="字典是redis底层数据结构之一，在dict.c中实现，下面分析下他的实现。一.简介redis的dict仍然是一个数组+链表实现的哈希表。区别为redis的dict有两个哈希表，第二个哈希表resize时使用，如下为它头文件中定义的结构： 123456789101112131415161718192021222324252627&#x2F;&#x2F;entrytypedef struct dic">
+<meta property="og:type" content="article">
+<meta property="og:title" content="redis_dict">
+<meta property="og:url" content="http://yoursite.com/2020/05/08/redis_dict/index.html">
 <meta property="og:site_name" content="Gorden Tam&#39;s blog">
+<meta property="og:description" content="字典是redis底层数据结构之一，在dict.c中实现，下面分析下他的实现。一.简介redis的dict仍然是一个数组+链表实现的哈希表。区别为redis的dict有两个哈希表，第二个哈希表resize时使用，如下为它头文件中定义的结构： 123456789101112131415161718192021222324252627&#x2F;&#x2F;entrytypedef struct dic">
 <meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2020-05-08T03:48:23.091Z">
+<meta property="article:modified_time" content="2020-05-08T03:48:23.071Z">
 <meta property="article:author" content="Gorden Tam">
 <meta name="twitter:card" content="summary">
 
@@ -115,13 +119,13 @@
 
 
 
-  <link rel="canonical" href="http://yoursite.com/"/>
+  <link rel="canonical" href="http://yoursite.com/2020/05/08/redis_dict/"/>
 
 
 
 
 
-  <title>Gorden Tam's blog</title>
+  <title>redis_dict | Gorden Tam's blog</title>
   
 
 
@@ -140,8 +144,7 @@
     
   
 
-  <div class="container sidebar-position-left 
-  page-home">
+  <div class="container sidebar-position-left page-post-detail">
     <div class="headband"></div>
 
     <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
@@ -214,9 +217,9 @@
         <div class="content-wrap">
           <div id="content" class="content">
             
-  <section id="posts" class="posts-expand">
+
+  <div id="posts" class="posts-expand">
     
-      
 
   
 
@@ -246,9 +249,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2020/05/08/redis_dict/" itemprop="url">redis_dict</a></h1>
+          <h1 class="post-title" itemprop="name headline">redis_dict</h1>
         
 
         <div class="post-meta">
@@ -298,9 +299,7 @@
       
 
       
-        
-          
-            <h2 id="字典是redis底层数据结构之一，在dict-c中实现，下面分析下他的实现。"><a href="#字典是redis底层数据结构之一，在dict-c中实现，下面分析下他的实现。" class="headerlink" title="字典是redis底层数据结构之一，在dict.c中实现，下面分析下他的实现。"></a>字典是redis底层数据结构之一，在dict.c中实现，下面分析下他的实现。</h2><h2 id="一-简介"><a href="#一-简介" class="headerlink" title="一.简介"></a>一.简介</h2><p>redis的dict仍然是一个数组+链表实现的哈希表。区别为redis的dict有两个哈希表，第二个哈希表resize时使用，如下为它头文件中定义的结构：</p>
+        <h2 id="字典是redis底层数据结构之一，在dict-c中实现，下面分析下他的实现。"><a href="#字典是redis底层数据结构之一，在dict-c中实现，下面分析下他的实现。" class="headerlink" title="字典是redis底层数据结构之一，在dict.c中实现，下面分析下他的实现。"></a>字典是redis底层数据结构之一，在dict.c中实现，下面分析下他的实现。</h2><h2 id="一-简介"><a href="#一-简介" class="headerlink" title="一.简介"></a>一.简介</h2><p>redis的dict仍然是一个数组+链表实现的哈希表。区别为redis的dict有两个哈希表，第二个哈希表resize时使用，如下为它头文件中定义的结构：</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;entry</span><br><span class="line">typedef struct dictEntry &#123;</span><br><span class="line">    void *key;</span><br><span class="line">    union &#123;</span><br><span class="line">        void *val;</span><br><span class="line">        uint64_t u64;</span><br><span class="line">        int64_t s64;</span><br><span class="line">        double d;</span><br><span class="line">    &#125; v;</span><br><span class="line">    struct dictEntry *next;</span><br><span class="line">&#125; dictEntry;</span><br><span class="line"></span><br><span class="line">typedef struct dictht &#123;</span><br><span class="line">    dictEntry **table;</span><br><span class="line">    unsigned long size;</span><br><span class="line">    unsigned long sizemask;</span><br><span class="line">    &#x2F;&#x2F;当前哈希表中</span><br><span class="line">    unsigned long used;</span><br><span class="line">&#125; dictht;</span><br><span class="line"></span><br><span class="line">typedef struct dict &#123;</span><br><span class="line">    dictType *type;</span><br><span class="line">    void *privdata;</span><br><span class="line">    dictht ht[2];</span><br><span class="line">    long rehashidx; &#x2F;&#x2F;rehash进度</span><br><span class="line">    unsigned long iterators; &#x2F;* number of iterators currently running *&#x2F;</span><br><span class="line">&#125; dict;</span><br></pre></td></tr></table></figure>
 <p>redis的字典有两个哈希表dictht[0]和dictht[1],只有rehash时两个哈希表才同时使用，平时只有dictht[0]哈希表中有数据。<br>rehashidx用来标记rehash正在执行到哪个槽，如果没有rehashing则返回-1.<br>redis rehash最大的特点是渐进性rehash，将rehash操作分散在插入，删除等操作中。这点和ThreadPoolExecutor实现思想很像有木有。</p>
 <p>二.实现分析：<br>1.插入：</p>
@@ -310,8 +309,6 @@
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line">int dictRehash(dict *d, int n) &#123;</span><br><span class="line">    int empty_visits &#x3D; n*10; &#x2F;* Max number of empty buckets to visit. *&#x2F;</span><br><span class="line">    if (!dictIsRehashing(d)) return 0;</span><br><span class="line"></span><br><span class="line">    while(n-- &amp;&amp; d-&gt;ht[0].used !&#x3D; 0) &#123;</span><br><span class="line">        dictEntry *de, *nextde;</span><br><span class="line"></span><br><span class="line">        &#x2F;* Note that rehashidx can&#39;t overflow as we are sure there are more</span><br><span class="line">         * elements because ht[0].used !&#x3D; 0 *&#x2F;</span><br><span class="line">        assert(d-&gt;ht[0].size &gt; (unsigned long)d-&gt;rehashidx);</span><br><span class="line">        &#x2F;&#x2F;跳过空槽</span><br><span class="line">        while(d-&gt;ht[0].table[d-&gt;rehashidx] &#x3D;&#x3D; NULL) &#123;</span><br><span class="line">            d-&gt;rehashidx++;</span><br><span class="line">            if (--empty_visits &#x3D;&#x3D; 0) return 1;</span><br><span class="line">        &#125;</span><br><span class="line">        de &#x3D; d-&gt;ht[0].table[d-&gt;rehashidx];</span><br><span class="line">        &#x2F;&#x2F;将当前槽上链表的所有节点都引动到ht[1]</span><br><span class="line">        while(de) &#123;</span><br><span class="line">            uint64_t h;</span><br><span class="line"></span><br><span class="line">            nextde &#x3D; de-&gt;next;</span><br><span class="line">            &#x2F;* Get the index in the new hash table *&#x2F;</span><br><span class="line">            h &#x3D; dictHashKey(d, de-&gt;key) &amp; d-&gt;ht[1].sizemask;</span><br><span class="line">            de-&gt;next &#x3D; d-&gt;ht[1].table[h];</span><br><span class="line">            d-&gt;ht[1].table[h] &#x3D; de;</span><br><span class="line">            d-&gt;ht[0].used--;</span><br><span class="line">            d-&gt;ht[1].used++;</span><br><span class="line">            de &#x3D; nextde;</span><br><span class="line">        &#125;</span><br><span class="line">        d-&gt;ht[0].table[d-&gt;rehashidx] &#x3D; NULL;</span><br><span class="line">        d-&gt;rehashidx++;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;检查时候完成，完成的话将整个ht[1]赋值给ht[0].</span><br><span class="line">    if (d-&gt;ht[0].used &#x3D;&#x3D; 0) &#123;</span><br><span class="line">        zfree(d-&gt;ht[0].table);</span><br><span class="line">        d-&gt;ht[0] &#x3D; d-&gt;ht[1];</span><br><span class="line">        _dictReset(&amp;d-&gt;ht[1]);</span><br><span class="line">        d-&gt;rehashidx &#x3D; -1;</span><br><span class="line">        return 0;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;* More to rehash... *&#x2F;</span><br><span class="line">    return 1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>rehash操作很简单，一次rehash操作移动一个槽。rehash完成后会释放ht[0],并将ht[1]赋值给ht[0].</p>
 
-          
-        
       
     </div>
     
@@ -328,151 +325,28 @@
       
 
       
-
-      
-
       
       
-        <div class="post-eof"></div>
+
       
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/04/23/ThreadLocal/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Gorden Tam">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Gorden Tam's blog">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2020/04/23/ThreadLocal/" itemprop="url">ThreadLocal</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
             
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">Posted on</span>
-              
-              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-04-23T16:53:15+08:00">
-                2020-04-23
-              </time>
+              <a href="/2020/04/23/ThreadLocal/" rel="next" title="ThreadLocal">
+                <i class="fa fa-chevron-left"></i> ThreadLocal
+              </a>
             
+          </div>
 
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
             
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
+          </div>
         </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
       
 
       
-        
-          
-            <p>##一.threadlocal概述<br>顾名思义线程本地存储，如果定义了一个threadlocal对象，每个线程往这个threadlocal对象中的读写是隔离的，可以为相同对象在不同线程中都创建不同的存储，因此如果多个线程都使用变量x，那线程本地存储会生成多个用于x的不同存储块。<br>##二.threadlocal实现的大致思路<br>Thread类有一个ThreadLocal.threadLocalMap类型的实例变量threadlocals，也就是说每个线程都有一个threadLocalMap，threadLocalMap为定义在threadlocal内的静态内部类，虽是一个map但没有实现map接口，有自己独立的实现。threadLocalMap的是使用开放寻址线性探测的哈希表，节点Entry继承自弱引用WeakReference，本身为指向threadlocal的弱引用，有一个value属性用来存放放到threadlocal内的值。可以简单的认为key为threadlocal对象，值为放入threadlocal的具体值。每个线程往threadlocal中塞值的时候，都会以该threadlocal对象为key，往自己的threadlocalmap中存，读也是以某个threadlocal为引用，在自己的threadlocalmap中找对应的key，从而实现线程隔离。<br>图为Thread类中threadlocalmap实例变量：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ThreadLocal.ThreadLocalMap threadLocals &#x3D; null;</span><br></pre></td></tr></table></figure>
-<p>##三.API<br><img src="https://upload-images.jianshu.io/upload_images/14017034-5a36bdc5fcc58196.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt="image.png"><br>threadLocalMap的api:<br><img src="https://upload-images.jianshu.io/upload_images/14017034-08bd34c20288d353.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt="image.png"></p>
-<p>##四.threadlocal API<br>get方法:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">public T get() &#123;</span><br><span class="line">    &#x2F;&#x2F;获取当前线程的threadlocalmap</span><br><span class="line">    Thread t &#x3D; Thread.currentThread();</span><br><span class="line">    ThreadLocalMap map &#x3D; getMap(t);</span><br><span class="line">    &#x2F;&#x2F;如果线程中的threadlocalmap非空，则以这个threadlocal为key查询对应的value</span><br><span class="line">    if (map !&#x3D; null) &#123;</span><br><span class="line">        ThreadLocalMap.Entry e &#x3D; map.getEntry(this);</span><br><span class="line">        if (e !&#x3D; null) &#123;</span><br><span class="line">            @SuppressWarnings(&quot;unchecked&quot;)</span><br><span class="line">            T result &#x3D; (T)e.value;</span><br><span class="line">            return result;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    &#x2F;&#x2F;否则设置初始化值</span><br><span class="line">    return setInitialValue();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">private T setInitialValue() &#123;</span><br><span class="line">    T value &#x3D; initialValue();</span><br><span class="line">    Thread t &#x3D; Thread.currentThread();</span><br><span class="line">    ThreadLocalMap map &#x3D; getMap(t);</span><br><span class="line">    if (map !&#x3D; null)</span><br><span class="line">        map.set(this, value);</span><br><span class="line">    else</span><br><span class="line">        createMap(t, value);</span><br><span class="line">    return value;</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;可以客户端自己继承threadlocal重写该类，否则如果没有set就get的话会抛出空指针错误</span><br><span class="line">protected T initialValue() &#123;</span><br><span class="line">    return null;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>set,remove:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">public void set(T value) &#123;</span><br><span class="line">    Thread t &#x3D; Thread.currentThread();</span><br><span class="line">    ThreadLocalMap map &#x3D; getMap(t);</span><br><span class="line">    if (map !&#x3D; null)</span><br><span class="line">        map.set(this, value);</span><br><span class="line">    else</span><br><span class="line">        createMap(t, value);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"> public void remove() &#123;</span><br><span class="line">     ThreadLocalMap m &#x3D; getMap(Thread.currentThread());</span><br><span class="line">     if (m !&#x3D; null)</span><br><span class="line">         m.remove(this);</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
-<p>可以看出get set remove方法都是获得当前线程的threadlocalmap，然后调用他的get set remove方法。</p>
-<p>##五.ThreadLocalMap详解<br>entry：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">static class Entry extends WeakReference&lt;ThreadLocal&lt;?&gt;&gt; &#123;</span><br><span class="line">    &#x2F;** The value associated with this ThreadLocal. *&#x2F;</span><br><span class="line">    Object value;</span><br><span class="line">    Entry(ThreadLocal&lt;?&gt; k, Object v) &#123;</span><br><span class="line">        super(k);</span><br><span class="line">        value &#x3D; v;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>entry本身为一个弱引用，定义了一个类型为object的value</p>
-<p>1.1为什么使用弱引用：<br>如果使用普通的key-value形式存储，那么就造成threadlocal对象的生命周期与线程一样长，因为总会存在thread-&gt;threadlocalmap-&gt;entry-&gt;threadlocal这样一条引用链存在，只要线程没被销毁，只要线程没有被销毁，那么节点在gc可达性分析中一直处于可达状态，无法被gc回收。而使用弱引用，如果threadlocal没有强引用可达，那么它不会活过下次gc，而该threadlocal对应的entry会失效，这位threadlocalmap垃圾清理提供了便利。</p>
-<p>1.2类的成员变量和相应方法：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line">         * 初始容量16，容量必须为2的幂</span><br><span class="line">         *&#x2F;</span><br><span class="line">        private static final int INITIAL_CAPACITY &#x3D; 16;</span><br><span class="line"></span><br><span class="line">        &#x2F;**</span><br><span class="line">         * 内部其实是entry类型的数组</span><br><span class="line">         *&#x2F;</span><br><span class="line">        private Entry[] table;</span><br><span class="line"></span><br><span class="line">        &#x2F;**</span><br><span class="line">         * 表中entry的个数</span><br><span class="line">         *&#x2F;</span><br><span class="line">        private int size &#x3D; 0;</span><br><span class="line"></span><br><span class="line">        &#x2F;**</span><br><span class="line">         * 装载因子</span><br><span class="line">         *&#x2F;</span><br><span class="line">        private int threshold; &#x2F;&#x2F; Default to 0</span><br><span class="line"></span><br><span class="line">        &#x2F;**</span><br><span class="line">         * 最差的装载因子为2&#x2F;3</span><br><span class="line">         *&#x2F;</span><br><span class="line">        private void setThreshold(int len) &#123;</span><br><span class="line">            threshold &#x3D; len * 2 &#x2F; 3;</span><br><span class="line">        &#125;</span><br></pre></td></tr></table></figure>
-<p>threadlocalmap为使用线性探测的哈希表，nextIndex和prevIndex为获取表前一个元素和后一个元素的方法：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;**</span><br><span class="line"> * Increment i modulo len.</span><br><span class="line"> *&#x2F;</span><br><span class="line">private static int nextIndex(int i, int len) &#123;</span><br><span class="line">    return ((i + 1 &lt; len) ? i + 1 : 0);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;**</span><br><span class="line"> * Decrement i modulo len.</span><br><span class="line"> *&#x2F;</span><br><span class="line">private static int prevIndex(int i, int len) &#123;</span><br><span class="line">    return ((i - 1 &gt;&#x3D; 0) ? i - 1 : len - 1);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>由此可见threadlocalmap逻辑上来说为一个环形。</p>
-<p>set方法:</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">private void set(ThreadLocal&lt;?&gt; key, Object value) &#123;</span><br><span class="line"></span><br><span class="line">           Entry[] tab &#x3D; table;</span><br><span class="line">           int len &#x3D; tab.length;</span><br><span class="line">           &#x2F;&#x2F;key所在的槽位，使用该key的哈希值与上tab表的长度减一，相当于用len对threadLocalHashCode取模</span><br><span class="line">           int i &#x3D; key.threadLocalHashCode &amp; (len-1);</span><br><span class="line">           &#x2F;&#x2F;若槽不为空，线性探测</span><br><span class="line">           for (Entry e &#x3D; tab[i];</span><br><span class="line">                e !&#x3D; null;</span><br><span class="line">                e &#x3D; tab[i &#x3D; nextIndex(i, len)]) &#123;</span><br><span class="line">               ThreadLocal&lt;?&gt; k &#x3D; e.get();</span><br><span class="line">               &#x2F;&#x2F;如果槽中entry对应的threadlocal对象与参数所传入对象相同，则直接替换</span><br><span class="line">               if (k &#x3D;&#x3D; key) &#123;</span><br><span class="line">                   e.value &#x3D; value;</span><br><span class="line">                   return;</span><br><span class="line">               &#125;</span><br><span class="line">               &#x2F;&#x2F;若槽中entry弱引用指向的threadlocal对象已经被gc回收，则该entry失效，替换</span><br><span class="line">               if (k &#x3D;&#x3D; null) &#123;</span><br><span class="line">                   replaceStaleEntry(key, value, i);</span><br><span class="line">                   return;</span><br><span class="line">               &#125;</span><br><span class="line">           &#125;</span><br><span class="line">           &#x2F;&#x2F;否则new一个entry</span><br><span class="line">           tab[i] &#x3D; new Entry(key, value);</span><br><span class="line">           int sz &#x3D; ++size;</span><br><span class="line">           if (!cleanSomeSlots(i, sz) &amp;&amp; sz &gt;&#x3D; threshold)</span><br><span class="line">               rehash();</span><br><span class="line">       &#125;</span><br></pre></td></tr></table></figure>
-<p>未完待续</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
       
     </footer>
   </div>
@@ -482,10 +356,11 @@
   </article>
 
 
-    
-  </section>
 
-  
+    <div class="post-spread">
+      
+    </div>
+  </div>
 
 
           </div>
@@ -493,6 +368,10 @@
 
 
           
+
+  
+
+
 
         </div>
         
@@ -513,8 +392,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            Table of Contents
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            Overview
+          </li>
+        </ul>
+      
 
-      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+      <section class="site-overview-wrap sidebar-panel">
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
             
@@ -556,6 +444,22 @@
         </div>
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#字典是redis底层数据结构之一，在dict-c中实现，下面分析下他的实现。"><span class="nav-number">1.</span> <span class="nav-text">字典是redis底层数据结构之一，在dict.c中实现，下面分析下他的实现。</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#一-简介"><span class="nav-number">2.</span> <span class="nav-text">一.简介</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       
@@ -696,6 +600,10 @@
 
 
   
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
 
   
 
